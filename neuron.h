@@ -77,7 +77,12 @@ namespace nn {
 	};
 
 	class var {
+
+		public:
 		friend class graph;
+		class iterator;
+
+		private:
 
 		std::vector <double> v;
 		op *operation;
@@ -90,6 +95,16 @@ namespace nn {
 				result.push_back (i -> v);
 			}
 			return result;
+		}
+
+		template <typename T>
+		var (const std::vector <var::iterator> &incoming, T *t_operation) {
+			std::vector <var*> raw_in;
+			for (auto i : incoming)
+				raw_in.push_back (i.reference);
+			operation = t_operation;
+			inputs = raw_in;
+			v = t_operation -> operator () (dereference_reference_vec (raw_in));
 		}
 		
 		public:
@@ -127,16 +142,6 @@ namespace nn {
 		var (std::vector <double> x) {
 			v = x;
 			operation = nullptr;
-		}
-
-		template <typename T>
-		var (const std::vector <var::iterator> &incoming, T *t_operation) {
-			std::vector <var*> raw_in;
-			for (auto i : incoming)
-				raw_in.push_back (i.reference);
-			operation = t_operation;
-			inputs = raw_in;
-			v = t_operation -> operator () (dereference_reference_vec (raw_in));
 		}
 
 	};
