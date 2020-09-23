@@ -1,5 +1,6 @@
 #include <iostream>
 #include "neuron.h"
+#include "nnops.h"
 
 int main () {
 	nn::graph g;
