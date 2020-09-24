@@ -61,6 +61,8 @@ namespace nn {
 			bool operator == (const iterator &);
 			bool operator != (var *);
 			bool operator != (const iterator &);
+			var& operator * ();
+			var* operator -> () const;
 		};
 
 		var (const std::vector <double> &);
@@ -82,7 +84,7 @@ namespace nn {
 		void clear ();
 
 		template <typename T>
-		var::iterator add_op (const std::vector <var::iterator> &inputs, const T& t) {
+		var::iterator add_op (const std::vector <var::iterator> &inputs) {
 			op_list.push_back (new T);
 			var_list.push_back (new var (inputs, *op_list.rbegin ()));
 			return var::iterator (*var_list.rbegin());

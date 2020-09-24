@@ -12,10 +12,11 @@ int main () {
 	nn::graph g;
 	nn::var x ({0.5, -0.1, 0.012, 0.00122, -0.92});
 	nn::var y ({-0.1, -0.019, -0.0965, 0.0127});
-	auto x_exp = g.add_op ({&x}, nn::exp ());
-	auto output = g.add_op ({x_exp, &y}, nn::concat ());
-	output = g.add_op ({g.add_op ({output}, nn::tanh ())}, nn::reduce_sum ());
-	output = g.add_op ({output}, nn::sigmoid ());
+	auto x_exp = g.add_op <nn::exp> ({&x});
+	auto output = g.add_op <nn::concat> ({x_exp, &y});
+	publish (output -> get_value ());
+	output = g.add_op <nn::reduce_sum> ({g.add_op <nn::tanh> ({output})});
+	output = g.add_op <nn::sigmoid> ({output});
 	auto gr = g.compute_gradients (output, {&x, &y});
 	for (auto &i : gr)
 		publish (i);

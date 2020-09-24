@@ -46,3 +46,11 @@ bool nn::var::iterator::operator != (const nn::var::iterator &i) {
 std::vector <double> nn::var::get_value () {
 	return v;
 }
+
+nn::var& nn::var::iterator::operator * () {
+	return *reference;
+}
+
+nn::var* nn::var::iterator::operator -> () const {
+	return reference;
+}
