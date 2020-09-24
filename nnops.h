@@ -1,7 +1,9 @@
 #include "neuron.h"
+#include <iostream>
 
 // operations
 namespace nn {
+	const double EPSILON = 1e-8;
 	void add_to_vector (std::vector <double> &x, const std::vector <double> &y) {
 		assert (x.size() == y.size());
 		for (size_t i = 0; i < x.size(); i++)
@@ -17,7 +19,28 @@ namespace nn {
 		for (size_t i = 0; i < x.size(); i++)
 			x[i] *= y[i];
 	}
-
+	double dot_product (const std::vector <double> &x, const std::vector <double> &y) {
+		assert (x.size () == y.size ());
+		double dot = 0;
+		for (size_t i = 0; i < x.size (); i++)
+			dot += x[i] * y[i];
+		return dot;
+	}
+	void scale_vector (std::vector <double> &x, double f) {
+		for (auto &i : x)
+			i *= f;
+	}
+	void sigmoid_vector (std::vector <double> &x) {
+		for (double &i : x)
+			i = 1.0 / (1.0 + std::exp (-i));
+	}
+	void tanh_vector (std::vector <double> &x) {
+		for (double &i : x) {
+			double exp = std::exp (i * 2);
+			i = (exp - 1) / (exp + 1);
+		}
+	}
+	
 
 
 	class add : public op {
@@ -99,10 +122,10 @@ namespace nn {
 	class prod : public op {
 
 		std::vector <std::vector <double>> input_cache;
+		bool scaled;
+		double scale;
 
-		public:
-
-		std::vector<double> operator () (const std::vector<std::vector<double>> &input) {
+		std::vector<double> prod_call (const std::vector<std::vector<double>> &input) {
 			assert (input.size() == 2 and input[0].size() == input[1].size());
 			std::vector <double> result = input[0];
 
@@ -113,7 +136,7 @@ namespace nn {
 			return result;
 		}
 
-		std::vector<std::vector<double>> grad(const std::vector<double> &output_grad) {
+		std::vector<std::vector<double>> prod_grad (const std::vector<double> &output_grad) {
 			assert (output_grad.size() == input_cache[0].size());
 			
 			swap (input_cache[0], input_cache[1]);
@@ -122,6 +145,49 @@ namespace nn {
 			hadamard (input_cache[1], output_grad);
 
 			return input_cache;
+		}
+
+		std::vector<double> scale_call (const std::vector<std::vector<double>> &input) {
+			assert (input.size() == 1);
+			std::vector <double> result = input[0];
+
+			for (auto &i : result)
+				i *= scale;
+
+			return result;
+		}
+
+		std::vector<std::vector<double>> scale_grad (const std::vector<double> &output_grad) {
+			std::vector <double> result = output_grad;
+			for (auto &i : result)
+				i *= scale;
+			return {result};
+		}
+
+
+		public:
+
+		prod () {
+			scaled = false;
+		}
+
+		prod (double s) {
+			scaled = true;
+			scale = s;
+		}
+
+		std::vector<double> operator () (const std::vector<std::vector<double>> &input) {
+			if (scaled)
+				return scale_call (input);
+			else
+				return prod_call (input);
+		}
+
+		std::vector<std::vector<double>> grad(const std::vector<double> &output_grad) {
+			if (scaled)
+				return scale_grad (output_grad);
+			else
+				return prod_grad (output_grad);
 		}
 
 	};
@@ -159,10 +225,8 @@ namespace nn {
 
 			cached_input = input;
 			
-			std::vector <double> result = input[0];
-			for (size_t i = 0; i < input[0].size (); i++)
-				result[i] *= input[1][i];
-			return result;
+			auto result = dot_product (input[0], input[1]);
+			return {result};
 		}
 
 		std::vector<std::vector<double>> grad(const std::vector<double> &output_grad) {
@@ -200,6 +264,166 @@ namespace nn {
 				result[0][i] *= mask[i];
 			mask.clear ();
 			return result;
+		}
+	};
+
+	class concat : public op {
+
+		std::vector <int> sizes;
+		size_t sizes_sum;
+
+		public:
+
+		std::vector<double> operator () (const std::vector<std::vector<double>> &input) {
+			sizes_sum = 0;
+			for (const std::vector <double> &i : input)
+				sizes.push_back (i.size ()), sizes_sum += i.size ();
+			// std::cout << sizes_sum << std::endl;
+			
+			std::vector <double> result;
+
+			for (const std::vector <double> &i : input)
+				result.insert (result.end (), i.begin (), i.end ());
+			return result;
+		}
+
+		std::vector<std::vector<double>> grad(const std::vector<double> &output_grad) {
+			// std::cout << sizes_sum << ' ' << output_grad.size () << std::endl;
+			assert (output_grad.size () == sizes_sum);
+			auto it = output_grad.begin ();
+			std::vector <std::vector <double>> input_grads;
+			for (auto i : sizes)
+				input_grads.push_back (std::vector <double> (it, it + i)), it += i;
+			return input_grads;
+		}
+	};
+
+	class softmax : public op {
+
+		std::vector <double> cached_output;
+
+		public:
+
+		std::vector<double> operator () (const std::vector<std::vector<double>> &input) {
+			assert (input.size () == 1);
+			double min = *std::min_element (input[0].begin (), input[0].end ());
+			cached_output.resize (input[0].size ());
+			double scale = 0;
+			for (const double &i : input[0])
+				scale += std::exp (i - min);
+			for (size_t i = 0; i < input[0].size (); i++)
+				cached_output[i] = std::exp (input[0][i] - min) / scale;
+			return cached_output;
+		}
+
+		std::vector<std::vector<double>> grad(const std::vector<double> &output_grad) {
+			assert (output_grad.size () == cached_output.size ());
+			std::vector <double> t1 = cached_output, t2 = cached_output;
+			hadamard (t1, output_grad);
+			scale_vector (t2, dot_product (output_grad, t2));
+			subtract_from_vector (t1, t2);
+			return {t1};
+		}
+	};
+
+	class sigmoid : public op {
+
+		std::vector <double> cached_output;
+
+		public:
+
+		std::vector<double> operator () (const std::vector<std::vector<double>> &input) {
+			assert (input.size () == 1);
+			cached_output = input[0];
+			sigmoid_vector (cached_output);
+			return cached_output;
+		}
+
+		std::vector<std::vector<double>> grad(const std::vector<double> &output_grad) {
+			assert (output_grad.size () == cached_output.size ());
+			for (size_t i = 0; i < output_grad.size (); i++)
+				cached_output[i] *= (1. - cached_output[i]) * output_grad[i];
+			return {cached_output};
+		}
+	};
+
+	class tanh : public op {
+
+		std::vector <double> cached_output;
+
+		public:
+
+		std::vector<double> operator () (const std::vector<std::vector<double>> &input) {
+			assert (input.size () == 1);
+			cached_output = input[0];
+			tanh_vector (cached_output);
+			return cached_output;
+		}
+
+		std::vector<std::vector<double>> grad(const std::vector<double> &output_grad) {
+			assert (output_grad.size () == cached_output.size ());
+			for (size_t i = 0; i < output_grad.size (); i++)
+				cached_output[i] = (1. - cached_output[i] * cached_output[i]) * output_grad[i];
+			return {cached_output};
+		}
+	};
+
+	class log : public op {
+
+		std::vector <double> cached_input;
+		double epsilon;
+
+		public:
+
+		log (double e = EPSILON) {
+			epsilon = e;
+		}
+
+		std::vector<double> operator () (const std::vector<std::vector<double>> &input) {
+			assert (input.size () == 1);
+			assert (*std::min_element (input[0].begin (), input[1].begin ()) > 0);
+			cached_input = input[0];
+			auto output = cached_input;
+			for (auto &i : output)
+				i = std::log (std::max (i, epsilon));
+			return output;
+		}
+
+		std::vector<std::vector<double>> grad(const std::vector<double> &output_grad) {
+			assert (output_grad.size () == cached_input.size ());
+			for (size_t i = 0; i < output_grad.size (); i++)
+				cached_input[i] = output_grad[i] / std::max (cached_input[i], epsilon);
+			return {cached_input};
+		}
+	};
+
+	class power : public op {
+
+		double pow;
+		std::vector <double> cache;
+
+		public:
+
+		power (double x) {
+			pow = x;
+		}
+
+		std::vector<double> operator () (const std::vector<std::vector<double>> &input) {
+			assert (input.size () == 1);
+			cache = input[0];
+			for (auto &i : cache)
+				i = std::pow (i, pow - 1);
+			auto result = cache;
+			for (size_t i = 0; i < result.size (); i++)
+				result[i] *= input[0][i];
+			return result;
+		}
+
+		std::vector<std::vector<double>> grad(const std::vector<double> &output_grad) {
+			assert (output_grad.size () == cache.size ());
+			for (size_t i = 0; i < output_grad.size (); i++)
+				cache[i] *= pow * output_grad[i];
+			return {cache};
 		}
 	};
 }

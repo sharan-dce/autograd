@@ -1,4 +1,5 @@
 #include <unordered_map>
+#include <algorithm>
 #include <cmath>
 #include <queue>
 #include <cassert>
@@ -63,6 +64,7 @@ namespace nn {
 		};
 
 		var (const std::vector <double> &);
+		std::vector <double> get_value ();
 
 	};
 
