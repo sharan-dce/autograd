@@ -2,7 +2,7 @@
 #include "autograd.h"
 #include "nnops.h"
 
-void publish (const std::vector <double> &x) {
+void print_vector (const std::vector <double> &x) {
 	for (auto i : x)
 		std::cout << i << ' ';
 	std::cout << std::endl;
@@ -19,5 +19,5 @@ int main () {
 	output = g ({output}, nn::prod (0.5));
 	auto gr = g.compute_gradients (output, {&x, &y});
 	for (auto &i : gr)
-		publish (i);
+		print_vector (i);
 }
