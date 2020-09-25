@@ -1,4 +1,4 @@
-#include "neuron.h"
+#include "autograd.h"
 
 std::unordered_map <nn::var*, int> nn::graph::find_outdegrees (nn::var *target) {
 	std::unordered_map <var*, int> outdegrees;
@@ -71,6 +71,7 @@ std::vector <std::vector <double>> nn::graph::compute_gradients (nn::var::iterat
 
 	for (auto &i : var_list)
 		result.push_back (gradients[i.reference]);
+	clear ();
 	return result;
 }
 

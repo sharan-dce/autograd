@@ -1,4 +1,4 @@
-#include "neuron.h"
+#include "autograd.h"
 
 std::vector <std::vector <double>> nn::var::dereference_reference_vec (const std::vector <nn::var*> &x) {
 	std::vector <std::vector <double>> result;

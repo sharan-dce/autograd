@@ -84,8 +84,8 @@ namespace nn {
 		void clear ();
 
 		template <typename T>
-		var::iterator add_op (const std::vector <var::iterator> &inputs) {
-			op_list.push_back (new T);
+		var::iterator operator () (const std::vector <var::iterator> &inputs, const T &t) {
+			op_list.push_back (new T (t));
 			var_list.push_back (new var (inputs, *op_list.rbegin ()));
 			return var::iterator (*var_list.rbegin());
 		}
