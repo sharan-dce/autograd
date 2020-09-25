@@ -5,10 +5,57 @@ The entire library has been written in about 700 lines of code. ```autograd```'s
 
 ### Examples
 1. Using the classes
-![Example](img/nn1.png)
-2. Creating a custom op
-![Example on creating a custom op](img/nn2.png)
+```
+#include <iostream>
+#include "autograd.h"
+#include "nnops.h"
 
+void print_vector (const std::vector <double> &x) {
+	for (auto i : x)
+		std::cout << i << ' ';
+	std::cout << std::endl;
+}
+
+int main () {
+	nn::graph g;
+	nn::var x ({0.5, -0.1, 0.012, 0.00122, -0.92});
+	nn::var y ({-0.1, -0.019, -0.0965, 0.0127});
+	auto x_exp = g ({&x}, nn::exp ());
+	auto output = g ({x_exp, &y}, nn::concat ());
+	output = g ({g ({output}, nn::tanh ())}, nn::reduce_sum ());
+	output = g ({output}, nn::sigmoid ());
+	output = g ({output}, nn::prod (0.5));
+	auto gr = g.compute_gradients (output, {&x, &y});
+	for (auto &i : gr)
+		print_vector (i);
+}
+```
+2. Creating a custom op
+```
+class add : public op {
+
+	int fan_in;
+	
+	public:
+
+	std::vector<double> operator () (const std::vector<std::vector<double>> &input) {
+		assert (input.size() > 0);
+		size_t vector_size = input[0].size();
+		std::vector <double> result (vector_size);
+		for (const auto &i : input) {
+			assert (i.size() == vector_size);
+			add_to_vector (result, i);
+		}
+		fan_in = input.size();
+		return result;
+	}
+
+	std::vector<std::vector<double>> grad(const std::vector<double> &output_grad) {
+		return std::vector <std::vector <double>> (fan_in, output_grad);
+	}
+
+};
+```
 ### Guide
 
   - autograd is defined inside the namespace ```nn```
