@@ -30,9 +30,16 @@ int main () {
 		print_vector (i);
 }
 ```
+
+Output:
+```
+0.00370426 0.00714669 0.00681578 0.00685549 0.00557598 
+0.0161718 0.0163281 0.0161829 0.0163314
+```
+
 2. Creating a custom op
 ```
-class add : public op {
+class add : public nn::op {
 
 	int fan_in;
 	
