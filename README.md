@@ -1,7 +1,7 @@
 # Autograd
 
 Autograd is an intuitive autodifferentiation library for C++. There are a few in-built operators that could be used to specify a wide range of computation graphs, and users can define custom operator classes as well, by simply inheriting from ```nn::op```.
-The entire library has been written in about 700 lines of code. ```autograd```'s API should be used to specify graphs by thinking about operators as modules that take in a number of vectors and produce an output vector.
+```autograd```'s API should be used to specify graphs by thinking about operators as modules that take in a number of vectors and produce an output vector.
 
 ### Examples
 1. Using the classes
